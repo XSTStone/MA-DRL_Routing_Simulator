@@ -70,25 +70,13 @@ from collections import deque
 
 # Forcing TensorFlow to use GPU - No worth using GPU for reinforcement learning in this case 
 #                                 since the training is done every step with small buffers
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"  # 仅暴露GPU1（物理索引1）和GPU2（物理索引2）
-physical_devices = tf.config.list_physical_devices('GPU')
-
-if len(physical_devices) >= 2:  # 确保至少检测到2个可用GPU（GPU1和GPU2）
-    # 启用GPU内存动态增长（避免显存占满）
-    for gpu in physical_devices:
-        tf.config.experimental.set_memory_growth(gpu, True)
-    print(f'成功检测到{len(physical_devices)}个可用GPU（GPU1和GPU2），设备信息:')
-    print(physical_devices)
-
-    # 配置数据并行多GPU训练策略（MirroredStrategy）
-    strategy = tf.distribute.MirroredStrategy()  # 自动使用所有可见GPU（即GPU1和GPU2）
-    print(f"多GPU训练已启用，使用策略: {strategy}")
-elif len(physical_devices) == 1:
-    print('警告:仅检测到1个可用GPU（GPU1或GPU2），将使用单GPU训练')
-    tf.config.experimental.set_memory_growth(physical_devices[0], True)
-else:
-    print('错误:未检测到可用GPU，无法进行多GPU训练')
-
+# physical_devices = tf.config.list_physical_devices('GPU')
+# if len(physical_devices) > 0:
+#     tf.config.experimental.set_memory_growth(physical_devices[0], True)
+#     print('GPU(s) available:')
+#     print(physical_devices)
+# else:
+#     print('No GPU available')
 
 ###############################################################################
 ###############################    Constants    ###############################
@@ -98,12 +86,12 @@ else:
 pathings    = ['hop', 'dataRate', 'dataRateOG', 'slant_range', 'Q-Learning', 'Deep Q-Learning']
 pathing     = pathings[5]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
 
-FL_Test     = True     # If True, it plots the model divergence the model divergence between agents
+FL_Test     = False     # If True, it plots the model divergence the model divergence between agents
 plotSatID   = True      # If True, plots the ID of each satellite
 plotAllThro = True      # If True, it plots throughput plots for each single path between gateways. If False, it plots a single figure for overall Throughput
 plotAllCon  = True      # If True, it plots congestion maps for each single path between gateways. If False, it plots a single figure for overall congestion
 
-movementTime= 4         # Every movementTime seconds, the satellites positions are updated and the graph is built again
+movementTime= 10        # Every movementTime seconds, the satellites positions are updated and the graph is built again
                         # If do not want the constellation to move, set this parameter to a bigger number than the simulation time
 ndeltas     = 5805.44/20#1 Movement speedup factor. Every movementTime sats will move movementTime*ndeltas space. If bigger, will make the rotation distance bigger
 
@@ -123,7 +111,7 @@ w4          = 5         # Normalization for the distance reward, for the travele
 
 gamma       = 0.99       # greedy factor. Smaller -> Greedy. Optimized params: 0.6 for Q-Learning, 0.99 for Deep Q-Learning
 
-GTs = [2]               # number of gateways to be tested
+GTs = [4]               # number of gateways to be tested
 # Gateways are taken from https://www.ksat.no/ground-network-services/the-ksat-global-ground-station-network/ (Except for Malaga and Aalborg)
 # GTs = [i for i in range(2,9)] # This is to make a sweep where scenarios with all the gateways in the range are considered
 
@@ -221,8 +209,8 @@ decayRate   = 4         # sets the epsilon decay in the deep learning implementa
 Clipnorm    = 1         # Maximum value to the nom of the gradients. Prevents the gradients of the model parameters with respect to the loss function becoming too large
 hardUpdate  = 1         # if up, the Q-network weights are copied inside the target network every updateF iterations. if down, this is done gradually
 updateF     = 1000      # every updateF updates, the Q-Network will be copied inside the target Network. This is done if hardUpdate is up
-batchSize   = 1024        # batchSize samples are taken from bufferSize samples to train the network
-bufferSize  = 3200        # bufferSize samples are used to train the network
+batchSize   = 16        # batchSize samples are taken from bufferSize samples to train the network
+bufferSize  = 50        # bufferSize samples are used to train the network
 
 # Stop Loss
 # Train       = True      # Global for all scenarios with different number of GTs. if set to false, the model will not train any of them
@@ -247,7 +235,7 @@ CurrentGTnumber = -1    # Number of active gateways. This number will be updated
 # nnpathTarget= './pre_trained_NNs/qTarget_2GTs.h5'
 nnpath      = './pre_trained_NNs/qNetwork_2GTs_lastHop.h5'
 nnpathTarget= './pre_trained_NNs/qTarget_2GTs_lastHop.h5'
-tablesPath  = './pre_trained_NNs/qTablesExport_2GTs_movement/'
+tablesPath  = './pre_trained_NNs/qTablesExport_8GTs/'
 
 if __name__ == '__main__':
     # nnpath          = f'./pre_trained_NNs/qNetwork_8GTs.h5'
@@ -373,12 +361,9 @@ if FL_tech == 'combination':
     global FL_counter
     FL_counter = 1
 
-print('FL_Test: ', FL_Test)
 if pathing != 'Deep Q-Learning':
     FL_Test = False
 
-print('pathing: ', pathing)
-print('FL_Test: ', FL_Test)
 if FL_Test:
     CKA_Values = []     # CKA matrix 
     num_samples = 10   # number of random samples to test the divergence between models
@@ -420,15 +405,6 @@ def generate_test_data(num_samples, include_not_avail=False):
     
     return np.array(data)
 
-def quantize_weights(weights, decimal_places=4):
-    """
-    对模型权重进行量化（截断小数位）
-    :param weights: 模型权重列表（每个元素是一个numpy数组）
-    :param decimal_places: 保留的小数位数
-    :return: 量化后的权重列表
-    """
-    return [np.round(w, decimals=decimal_places) for w in weights]
-
 def get_models(earth):
     models = []
     model_names = []
@@ -438,65 +414,18 @@ def get_models(earth):
             model_names.append(sat.ID)
     return models, model_names
 
-def average_model_weights_raw(models):
+def average_model_weights(models):
     """Average weights of multiple trained models."""
     weights = [model.get_weights() for model in models]
     new_weights = [np.mean(np.array(w), axis=0) for w in zip(*weights)]
     return new_weights
 
-def average_model_weights(weights_list):
-    # 直接对权重列表的列表计算平均（无需调用 model.get_weights()）
-    averaged_weights = [np.mean(weights_layer, axis=0) for weights_layer in zip(*weights_list)]
-    return averaged_weights
-
-def full_federated_learning_raw(models):
+def full_federated_learning(models):
     averaged_weights = average_model_weights(models)
     for model in models:
         model.set_weights(averaged_weights)
 
-def full_federated_learning(models):
-    """全局联邦平均（带量化机制）"""
-    # 定义8位线性量化/反量化函数
-    def quantize(weights, bits=8):
-        """将浮点权重量化为8位整数"""
-        min_val = np.min(weights)
-        max_val = np.max(weights)
-        if max_val == min_val:  # 处理全零或恒定值情况
-            return np.zeros_like(weights, dtype=np.int8), 1.0, 0
-        scale = (max_val - min_val) / (2**bits - 1)
-        zero_point = np.clip(np.round(-min_val / scale), 0, 2**bits - 1).astype(np.int32)
-        return np.round(weights / scale + zero_point).clip(0, 2**bits - 1).astype(np.int8), scale, zero_point
-
-    def dequantize(quantized_weights, scale, zero_point):
-        """将8位整数反量化为浮点权重"""
-        return (quantized_weights - zero_point) * scale
-
-    # 收集所有模型的量化权重及参数
-    quantized_weights_list = []
-    q_params_list = []
-    for model in models:
-        raw_weights = model.get_weights()
-        quantized_weights = []
-        q_params = []
-        for layer_weights in raw_weights:
-            qw, s, zp = quantize(layer_weights)
-            quantized_weights.append(qw)
-            q_params.append((s, zp))
-        quantized_weights_list.append(quantized_weights)
-        q_params_list.append(q_params)
-
-    # 反量化所有模型的权重并计算平均
-    all_raw_weights = []
-    for q_weights, q_params in zip(quantized_weights_list, q_params_list):
-        raw_weights = [dequantize(qw, s, zp) for qw, (s, zp) in zip(q_weights, q_params)]
-        all_raw_weights.append(raw_weights)
-    averaged_weights = average_model_weights(all_raw_weights)  # 假设average_model_weights支持权重列表输入
-
-    # 将平均权重设置回各模型
-    for model in models:
-        model.set_weights(averaged_weights)
-
-def federate_by_plane_raw(models, model_names):
+def federate_by_plane(models, model_names):
     """Perform Federated Averaging within each orbital plane."""
     plane_dict = {}
     for model, name in zip(models, model_names):
@@ -510,79 +439,7 @@ def federate_by_plane_raw(models, model_names):
         for model in plane_models:
             model.set_weights(averaged_weights)
 
-def federate_by_plane(models, model_names):
-    """Perform Federated Averaging within each orbital plane with quantization."""
-    # 新增：定义8位线性量化/反量化函数
-    def quantize(weights, bits=8):
-        """将浮点权重量化为8位整数"""
-        min_val = np.min(weights)
-        max_val = np.max(weights)
-        if max_val == min_val:  # 处理全零或恒定值情况
-            return np.zeros_like(weights, dtype=np.int8), 1.0, 0
-        scale = (max_val - min_val) / (2**bits - 1)
-        zero_point = np.clip(np.round(-min_val / scale), 0, 2**bits - 1).astype(np.int32)
-        return np.round(weights / scale + zero_point).clip(0, 2**bits - 1).astype(np.int8), scale, zero_point
-
-    def dequantize(quantized_weights, scale, zero_point):
-        """将8位整数反量化为浮点权重"""
-        return (quantized_weights - zero_point) * scale
-
-    plane_dict = {}
-    for model, name in zip(models, model_names):
-        plane = name.split('_')[0]
-        # 获取原始权重并进行量化
-        raw_weights = model.get_weights()
-        quantized_weights = []
-        q_params = []  # 存储(scale, zero_point)
-        for layer_weights in raw_weights:
-            qw, s, zp = quantize(layer_weights)
-            quantized_weights.append(qw)
-            q_params.append((s, zp))
-        # 存储量化后的权重及参数
-        if plane in plane_dict:
-            plane_dict[plane].append( (model, quantized_weights, q_params) )
-        else:
-            plane_dict[plane] = [ (model, quantized_weights, q_params) ]
-
-    for plane_models in plane_dict.values():
-        # 反量化所有模型的权重并收集原始浮点权重
-        all_raw_weights = []
-        for model, q_weights, q_params in plane_models:
-            raw_weights = [dequantize(qw, s, zp) for qw, (s, zp) in zip(q_weights, q_params)]
-            all_raw_weights.append(raw_weights)
-        # 计算平均权重（保持原有平均逻辑）
-        averaged_weights = average_model_weights([mw for mw in all_raw_weights])  # 假设average_model_weights支持权重列表输入
-        # 将平均权重设置回各模型
-        for model, _, _ in plane_models:
-            model.set_weights(averaged_weights)
-
 def model_anticipation_federate(models, model_names):
-    """Perform Model Anticipation Federated Learning with quantization."""
-    plane_dict = {}  
-    # Group models by orbital plane
-    for model, name in zip(models, model_names):
-        plane = name.split('_')[0]
-        if plane not in plane_dict:
-            plane_dict[plane] = []
-        plane_dict[plane].append((model, name))  
-
-    # Process each plane for model anticipation
-    for plane_models in plane_dict.values():
-        plane_models.sort(key=lambda x: int(x[1].split('_')[1]))  # 按卫星ID排序
-        for i in range(1, len(plane_models)):
-            # 获取前一个模型的权重并量化（仅保留前4位小数）
-            prev_model = plane_models[i - 1][0]
-            prev_weights = prev_model.get_weights()
-            quantized_prev_weights = quantize_weights(prev_weights, decimal_places=4)  # 新增量化步骤
-
-            current_model = plane_models[i][0]
-            current_weights = current_model.get_weights()
-
-            # 平均当前模型权重与量化后的前一个模型权重
-            new_weights = [(w1 + w2) / 2 for w1, w2 in zip(current_weights, quantized_prev_weights)]
-            current_model.set_weights(new_weights)
-
-def model_anticipation_federate_raw(models, model_names):
     """Perform Model Anticipation Federated Learning."""
     plane_dict = {}
     # Group models by orbital plane
@@ -690,7 +547,6 @@ def perform_FL(earth):#, outputPath):
     CKA_Values_after = compute_full_cka_matrix(models, data)
     update_sats_models(earth, models, model_names)
 
-    print('联邦学习已完成')
     print('----------------------------------')
     return CKA_Values_before, CKA_Values_after
 
@@ -2223,7 +2079,6 @@ class Earth:
                 constellation.rotate(ndeltas*deltaT)
 
         # Simpy process for handling moving the constellation and the satellites within the constellation
-        print('在init中运行了move Const')
         self.moveConstellation = env.process(self.moveConstellation(env, deltaT, getRates))
 
     def set_window(self, window):  # function to change/set window for the earth
@@ -3497,7 +3352,7 @@ class Earth:
                     interDataRates.append(satData[2])
         return interDataRates
 
-    def moveConstellation(self, env, deltaT=6, getRates = False):
+    def moveConstellation(self, env, deltaT=3600, getRates = False):
         """
         Simpy process function:
 
@@ -3516,8 +3371,6 @@ class Earth:
 
         while True:
             print('Creating/Moving constellation: Updating satellites position and links.')
-            print('成功运行3392行')
-            print('GetRates: ', getRates)
             if getRates:
                 # get data rates for all inter plane ISLs and all GSLs (up and down) - used for testing
                 upDataRates, downDataRates = self.getGSLDataRates()
@@ -3532,16 +3385,13 @@ class Earth:
                 for val in inter:
                     interRates.append(val)
 
-            print('成功运行3408行')
-            print('deltaT: ', deltaT)
             yield env.timeout(deltaT)
-            print('成功运行3410行')
+
             # clear satellite references on all GTs
             for GT in self.gateways:
                 GT.satsOrdered = []
                 GT.linkedSat = (None, None)
-            
-            print('成功运行3414行')
+
             # rotate constellation and satellites
             for plane in self.LEO:
                 plane.rotate(ndeltas*deltaT)
@@ -3549,7 +3399,6 @@ class Earth:
             # relink satellites and GTs
             self.linkSats2GTs("Optimize")
 
-            print('成功运行3422行')
             # create new graph and add references to all GTs for every rotation
             # prevGraph = self.graph
             graph = createGraph(self, matching=matching)
@@ -3557,16 +3406,13 @@ class Earth:
             for GT in self.gateways:
                 GT.graph = graph
 
-            print('move const成功运行到3427行, pathParam: ', self.pathParam)
             if self.pathParam == 'Deep Q-Learning' or self.pathParam == 'Q-Learning':
                 self.updateSatelliteProcessesRL(graph)
             else:
                 self.updateSatelliteProcessesCorrect(graph)
 
-            print('move const成功运行到3433行')
             self.updateGTPaths()
             self.nMovs += 1
-            print('move const中的saveISLs: ', saveISLs)
             if saveISLs:
                 print('Constellation moved! Saving ISLs map...')
                 islpath = outputPath + '/ISL_maps/'
@@ -3575,9 +3421,7 @@ class Earth:
                 plt.close()
 
             # Perform Federated Learning
-            print('FL_Test in move const: ', FL_Test)
             if FL_Test:
-                print('已进入move Constellation')
                 global const_moved
                 const_moved = True
                 CKA_before, CKA_after = perform_FL(self)#, outputPath)
@@ -4693,7 +4537,7 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
             print('----------------------------------')
             print('Creating satellites agents...')
             if importQVals:
-                print(f'Importing the Neural networks from: \n{nnpath}\n{nnpathTarget}')
+                print:(f'Importing the Neural networks from: \n{nnpath}\n{nnpathTarget}')
             for plane in earth.LEO:
                 for sat in plane.sats:
                     sat.DDQNA = DDQNAgent(len(earth.gateways), hyperparams, earth, sat.ID)
@@ -5932,7 +5776,6 @@ def getDeepStateDiffLastHop(block, sat, linkedSats):
 
     state = [
         # Previous satellite information
-        # 此处多了一个维度,即last-satellite维度,将其删去做尝试,看能不能顺利运行
         get_last_satellite(block, sat),
         # Up link scores and positions
         getDeepSatScore(queuesU['U']),
@@ -5974,7 +5817,6 @@ def getDeepStateDiffLastHop(block, sat, linkedSats):
         get_relative_position(satDest, current_lat, is_lat=True),
         get_relative_position(satDest, current_lon, is_lat=False)
     ]
-
 
     return np.array(state).reshape(1, -1)
 
@@ -6762,8 +6604,7 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
 
     print('Routing metric: ' + pathing)
 
-    # simulationTimelimit = testLength if testType != "Rates" else movementTime * testLength + 10
-    simulationTimelimit = 100
+    simulationTimelimit = testLength if testType != "Rates" else movementTime * testLength + 10
 
     firstGT = True
     for GTnumber in GTs:
@@ -6818,15 +6659,10 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
         plt.close()
         print('----------------------------------')
 
-        print('simulationTimelimit: ', simulationTimelimit)
         progress = env.process(simProgress(simulationTimelimit, env))
         startTime = time.time()
-        print('Test Ok1')
-        # earth1.moveConstellation()
         env.run(simulationTimelimit)
-        print('Test Ok2')
         timeToSim = time.time() - startTime
-        print('Test Ok0')
 
         if testType == "Rates":
             plotRatesFigures()
@@ -6859,13 +6695,9 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
                 print('Plotting latencies...')
                 plotSaveAllLatencies(outputPath, GTnumber, allLatencies, epsDF)
             
-            print('测试用')
-            print('pathing: ', pathing)
             if pathing == "Deep Q-Learning":
                 # save losses
                 save_losses(outputPath, earth1, GTnumber)
-                print('FL_Test: ', FL_Test)
-                print('const_moved: ', const_moved)
                 if FL_Test and const_moved:
                     print('Plotting CKA values...')
                     plot_cka_over_time(earth1.CKA, outputPath, GTnumber)
@@ -6874,7 +6706,6 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
                 print('Plotting latencies...')
                 plotSaveAllLatencies(outputPath, GTnumber, allLatencies)
 
-        print('Test Ok')
         plotShortestPath(earth1, pathBlocks[1][-1].path, outputPath)
         if not onlinePhase:
             plotQueues(earth1.queues, outputPath, GTnumber)

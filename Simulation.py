@@ -25,64 +25,75 @@ downGSLRates = []
 interRates = []
 intraRate = []
 
-
-def getBlockTransmissionStats(timeToSim, GTs, constellationType):
-    '''
+'''
     General Block transmission stats
+    模拟结果统计函数,用于计算数据块在卫星网络中的传输性能指标(延迟、跳数等),并输出关键统计结果
+    最终返回一个封装了所有统计信息的 Results 对象
     '''
-    allTransmissionTimes = []
-    largestTransmissionTime = (0, None)
-    mostHops = (0, None)
-    queueLat = []
-    txLat = []
-    propLat = []
-    latencies = [queueLat, txLat, propLat]
-    blocks = []
+def getBlockTransmissionStats(timeToSim, GTs, constellationType):
+    allTransmissionTimes = []  # 存储所有数据块的总传输时间
+    largestTransmissionTime = (0, None)  # 记录最长传输时间(值, 对应的块)
+    mostHops = (0, None)  # 记录最多跳数(值, 对应的块)
+    queueLat = []  # 存储每个块的队列延迟(排队时间)
+    txLat = []  # 存储每个块的传输延迟(数据发送时间)
+    propLat = []  # 存储每个块的传播延迟(信号在空间传播的时间)
+    latencies = [queueLat, txLat, propLat]  # 延迟分类列表(未直接使用)
+    blocks = []  # 预留存储完成传输的块(当前代码未填充)
 
     for block in receivedDataBlocks:
-        time = block.getTotalTransmissionTime()
-        hops = len(block.checkPoints)
+        time = block.getTotalTransmissionTime()  # 获取块的总传输时间(方法未展示)
+        hops = len(block.checkPoints)  # 跳数(通过检查点数量计算,checkPoints记录每跳的接收时间)
 
+        # 更新最长传输时间记录
         if largestTransmissionTime[0] < time:
             largestTransmissionTime = (time, block)
 
+        # 更新最多跳数记录
         if mostHops[0] < hops:
             mostHops = (hops, block)
 
-        allTransmissionTimes.append(time)
+        allTransmissionTimes.append(time)  # 记录总传输时间
 
-        queueLat.append(block.getQueueTime()[0])
-        txLat.append(block.txLatency)
-        propLat.append(block.propLatency)
+        # 记录三种延迟(队列、传输、传播)
+        queueLat.append(block.getQueueTime()[0])  # 队列延迟(方法未展示)
+        txLat.append(block.txLatency)  # 传输延迟(块属性)
+        propLat.append(block.propLatency)  # 传播延迟(块属性)
 
-    avgTime = np.mean(allTransmissionTimes)
-    totalTime = sum(allTransmissionTimes)
+    avgTime = np.mean(allTransmissionTimes)  # 平均传输时间(使用numpy计算均值)
+    totalTime = sum(allTransmissionTimes)  # 所有块的总传输时间之和(用于计算延迟占比) 
 
     print("\n########## Results #########\n")
-    print(f"The simulation took {timeToSim} seconds to run")
-    print(f"A total of {len(createdBlocks)} data blocks were created")
-    print(f"A total of {len(receivedDataBlocks)} data blocks were transmitted")
-    print(f"A total of {len(createdBlocks) - len(receivedDataBlocks)} data blocks were stuck")
-    print(f"Average transmission time for all blocks were {avgTime}")
+    print(f"The simulation took {timeToSim} seconds to run")  # 模拟总耗时
+    print(f"A total of {len(createdBlocks)} data blocks were created")  # 总创建的块数(全局变量)
+    print(f"A total of {len(receivedDataBlocks)} data blocks were transmitted")  # 成功传输的块数
+    print(f"A total of {len(createdBlocks) - len(receivedDataBlocks)} data blocks were stuck")  # 未传输的块数(卡住的块)
+    print(f"Average transmission time for all blocks were {avgTime}")  # 平均传输时间
     print('Total latecies:\nQueue time: {}%\nTransmission time: {}%\nPropagation time: {}%'.format(
-        '%.4f' % float(sum(queueLat)/totalTime*100), 
-        '%.4f' % float(sum(txLat)/totalTime*100), 
-        '%.4f' % float(sum(propLat)/totalTime*100)))
+        '%.4f' % float(sum(queueLat)/totalTime*100),  # 队列延迟占比
+        '%.4f' % float(sum(txLat)/totalTime*100),     # 传输延迟占比
+        '%.4f' % float(sum(propLat)/totalTime*100)    # 传播延迟占比
+    ))
 
-    results = Results(finishedBlocks=blocks,
-                      constellation=constellationType,
-                      GTs=GTs,
-                      meanTotalLatency=avgTime,
-                      meanQueueLatency=np.mean(queueLat),
-                      meanPropLatency=np.mean(propLat),
-                      meanTransLatency=np.mean(txLat),
-                      perQueueLatency = sum(queueLat)/totalTime*100,
-                      perPropLatency = sum(propLat)/totalTime*100,
-                      perTransLatency = sum(txLat)/totalTime*100)
+    results = Results(
+        finishedBlocks=blocks,  # 完成传输的块(当前为空)
+        constellation=constellationType,  # 星座类型
+        GTs=GTs,  # 地面站信息
+        meanTotalLatency=avgTime,  # 平均总延迟
+        meanQueueLatency=np.mean(queueLat),  # 平均队列延迟
+        meanPropLatency=np.mean(propLat),    # 平均传播延迟
+        meanTransLatency=np.mean(txLat),     # 平均传输延迟
+        perQueueLatency=sum(queueLat)/totalTime*100,  # 队列延迟占比(%)
+        perPropLatency=sum(propLat)/totalTime*100,    # 传播延迟占比(%)
+        perTransLatency=sum(txLat)/totalTime*100       # 传输延迟占比(%)
+    )
 
     return results
 
-
+'''
+    模拟进度显示函数
+    用于实时显示模拟的进度,包括已完成的模拟时间、估计的剩余时间和当前模拟时间
+    每经过 timeStepSize 秒,进度将更新并显示
+'''
 def simProgress(simTimelimit, env):
     timeSteps = 100
     timeStepSize = simTimelimit/timeSteps
@@ -100,7 +111,11 @@ def simProgress(simTimelimit, env):
 ###############################################################################
 ###############################    Constants    ###############################
 ###############################################################################
-
+'''
+    物理常量定义
+    包括地球半径、重力加速度、地球质量、地球自转周期、光速、玻尔兹曼常数和有效天线效率等
+    这些常量在模拟中用于物理计算和模型假设
+'''
 Re  = 6378e3            # Radius of the earth [m]
 G    = 6.67259e-11      # Universal gravitational constant [m^3/kg s^2]
 Me  = 5.9736e24         # Mass of the earth
@@ -128,7 +143,10 @@ class Results:
         self.perPropLatency = perPropLatency
         self.perTransLatency = perTransLatency
 
-
+'''
+    用于数据块序列化的辅助类
+    提取原始数据块的关键属性,生成轻量可序列化的对象
+'''
 class BlocksForPickle:
     def __init__(self, block):
         self.size = 64800  # size in bits
@@ -145,6 +163,12 @@ class BlocksForPickle:
         self.totLatency = block.totLatency  # total latency
 
 
+'''
+    用于建模卫星通信中的射频(Radio Frequency, RF)链路
+    封装了射频链路的关键参数(如频率、带宽、天线增益等)
+    并通过初始化方法计算链路的核心性能指标(如总增益、噪声功率、增益与系统温度比等)
+    目的是为卫星网络模拟提供物理层的射频通信参数支持,用于后续计算数据传输速率、延迟等性能
+'''
 class RFlink:
     def __init__(self, frequency, bandwidth, maxPtx, aDiameterTx, aDiameterRx, pointingLoss, noiseFigure,
                  noiseTemperature, min_rate):
@@ -173,7 +197,12 @@ class RFlink:
             '%.2f' % self.GoT,
         )
 
-
+'''
+    全称为 Free Space Optics Link自由空间光通信链路
+    用于建模卫星通信中的自由空间光通信链路的关键参数
+    与射频RF通信互补
+    通常具有更高的数据速率和更小的设备重量
+'''
 class FSOlink:
     def __init__(self, data_rate, power, comm_range, weight):
         self.data_rate = data_rate
@@ -189,30 +218,39 @@ class FSOlink:
             self.weight)
 
 
+'''
+    用于建模卫星星座中的单个轨道平面
+    封装了轨道平面的核心参数
+    提供了轨道动态调整(旋转)的方法
+    其核心作用是模拟卫星在轨道平面中的分布、运动规律,以及轨道随时间的位置变化,为卫星网络的通信和路由模拟提供基础支撑。
+'''
 class OrbitalPlane:
     def __init__(self, ID, h, longitude, inclination, n_sat, min_elev, firstID, env):
-        self.ID = ID 								# A unique ID given to every orbital plane = index in Orbital_planes, string
-        self.h = h									# Altitude of deployment
-        self.longitude = longitude					# Longitude angle where is intersects equator [radians]
-        self.inclination = math.pi/2 - inclination	# Inclination of the orbit form [radians]
-        self.n_sat = n_sat							# Number of satellites in plane
-        self.period = 2 * math.pi * math.sqrt((self.h+Re)**3/(G*Me))	# Orbital period of the satellites in seconds
-        self.v = 2*math.pi * (h + Re) / self.period						# Orbital velocity of the satellites in m/s
-        self.min_elev = math.radians(min_elev)							# Minimum elevation angle for ground comm.
-        self.max_alpha = math.acos(Re*math.cos(self.min_elev)/(self.h+Re))-self.min_elev	# Maximum angle at the center of the Earth w.r.t. yaw
-        self.max_beta  = math.pi/2-self.max_alpha-self.min_elev								# Maximum angle at the satellite w.r.t. yaw
-        self.max_distance_2_ground = Re*math.sin(self.max_alpha)/math.sin(self.max_beta)	# Maximum distance to a servable ground station
+        self.ID = ID 								# A unique ID given to every orbital plane = index in Orbital_planes, string 轨道平面的唯一标识(字符串类型,通常为轨道平面在星座中的索引)
+        self.h = h									# Altitude of deployment 轨道高度(单位：米),即卫星部署的海拔高度。
+        self.longitude = longitude					# Longitude angle where is intersects equator [radians] 轨道平面与赤道交点的初始经度
+        self.inclination = math.pi/2 - inclination	# Inclination of the orbit form [radians] 轨道平面的倾角,通常为90度减去轨道的倾角
+        self.n_sat = n_sat							# Number of satellites in plane 轨道平面上卫星的数量
+        self.period = 2 * math.pi * math.sqrt((self.h+Re)**3/(G*Me))	# Orbital period of the satellites in seconds 轨道周期,用于计算卫星的运动周期
+        self.v = 2*math.pi * (h + Re) / self.period						# Orbital velocity of the satellites in m/s 轨道速度,用于计算卫星的运动速度
+        self.min_elev = math.radians(min_elev)							# Minimum elevation angle for ground comm.  最小仰角,用于限制地面站与卫星的可视角度
+        self.max_alpha = math.acos(Re*math.cos(self.min_elev)/(self.h+Re))-self.min_elev	# Maximum angle at the center of the Earth w.r.t. yaw  几何角度参数,用于计算卫星覆盖地面的最大距离
+        self.max_beta  = math.pi/2-self.max_alpha-self.min_elev								# Maximum angle at the satellite w.r.t. yaw  几何角度参数,用于计算卫星覆盖地面的最大距离
+        self.max_distance_2_ground = Re*math.sin(self.max_alpha)/math.sin(self.max_beta)	# Maximum distance to a servable ground station 卫星到可服务地面站的最大距离
         
         # Adding satellites
-        self.first_sat_ID = firstID # Unique ID of the first satellite in the orbital plane
+        self.first_sat_ID = firstID # Unique ID of the first satellite in the orbital plane 轨道平面上第一个卫星的唯一标识
         
-        self.sats = []              # List of satellites in the orbital plane
-        for i in range(n_sat):
+        self.sats = []              # List of satellites in the orbital plane 轨道平面上的卫星列表 
+        for i in range(n_sat):      # 卫星ID由 firstID 拼接索引生成
             self.sats.append(Satellite(self.first_sat_ID + str(i), int(self.ID), int(i), self.h, self.longitude, self.inclination, self.n_sat, env))
         
-        self.last_sat_ID = self.first_sat_ID + str(len(self.sats) - 1) # Unique ID of the last satellite in the orbital plane
-        
-    def __repr__(self):
+        self.last_sat_ID = self.first_sat_ID + str(len(self.sats) - 1) # Unique ID of the last satellite in the orbital plane 轨道平面上最后一个卫星的唯一标识
+    
+    '''
+        输出轨道平面的信息,包括轨道平面ID、轨道高度、经度、倾角、卫星数量、周期和速度
+    '''
+    def __repr__(self):             
         return '\nID = {}\n altitude= {} km\n longitude= {} deg\n inclination= {} deg\n number of satellites= {}\n period= {} hours\n satellite speed= {} km/s'.format(
             self.ID,
             self.h/1e3,
@@ -222,6 +260,9 @@ class OrbitalPlane:
             '%.2f' % (self.period/3600),
             '%.2f' % (self.v/1e3))
 
+    '''
+        用于模拟 地球自转对轨道平面位置的影响 ,通过调整轨道平面的经度( longitude )实现轨道的动态旋转
+    '''
     def rotate(self, delta_t):
         """
         Rotates the orbit according to the elapsed time by adjusting the longitude. The amount the longitude is adjusted
@@ -236,6 +277,10 @@ class OrbitalPlane:
             sat.rotate(delta_t, self.longitude, self.period)
 
 
+'''
+    建模单个卫星的完整行为,包括卫星的物理属性(位置、轨道参数)、通信链路管理(与地面站、其他卫星的连接)、数据块传输逻辑(接收、发送、延迟计算),以及动态轨道运动模拟(随时间旋转)
+    核心作用是为卫星网络的路由算法、性能评估(如延迟、吞吐量)提供基础的卫星实例支持
+'''
 class Satellite:
     def __init__(self, ID, in_plane, i_in_plane, h, longitude, inclination, n_sat, env, quota = 500, power = 10):
         self.ID = ID                    # A unique ID given to every satellite
@@ -652,6 +697,11 @@ class Satellite:
         return latencies
 
 
+'''
+    用于建模卫星网络中的“边”(即两个卫星节点之间的连接关系)
+    封装了卫星间连接的关键参数(如距离、传输速率等)
+    为卫星网络的拓扑构建(如生成图结构)和路由算法(如最短路径计算)提供基础数据支持
+'''
 class edge:
     def  __init__(self, sati, satj, slant_range, dji, dij, shannonRate):
         self.i = sati   # sati ID
@@ -673,6 +723,10 @@ class edge:
             return self.slant_range.__cmp__(other.slant_range)
 
 
+'''
+    用于建模卫星网络中从网关Ground Terminal, GT 发出的数据块
+    通过记录块的传输时间、路径和延迟,为卫星网络的性能分析(如延迟、吞吐量)提供基础数据支持
+'''
 class DataBlock:
     """
     Class for outgoing block of data from the gateways.
@@ -737,6 +791,13 @@ class DataBlock:
         )
 
 
+'''
+    建模卫星网络中的地面站,是卫星网络与地面用户的接口
+        管理地面站与卫星的连接
+        生成并发送数据块 DataBlock 到目标地面站
+        接收来自卫星的数据块并记录传输性能
+        管理覆盖范围内的地面小区 cell ,确保用户流量的正确路由
+'''
 class Gateway:
     """
     Class for the gateways (or concentrators). Each gateway will exist as an instance of this class
@@ -801,6 +862,7 @@ class Gateway:
         """
         Creates the processes for filling the data blocks and adding them to the send-buffer. A separate process for
         each destination gateway is created.
+        为每个目标地面站创建一个 fillBlock 进程,用于生成并填充数据块
         """
 
         self.totalGTs = len(Receivers)
@@ -817,6 +879,7 @@ class Gateway:
         send-buffer after the calculated time.
 
         A separate process for each destination gateway will be running this function.
+        负责创建数据块、计算填充时间 timeToFull ,并将填充完成的块添加到发送缓冲区
         """
         index = 0
         unavailableDestinationBuffer = []
@@ -879,6 +942,8 @@ class Gateway:
         this case is, however, not handled.)
 
         Since there is only one link on the GT for sending, there will only be one process running this method.
+
+        从发送缓冲区取出数据块,通过卫星发送到目标
         """
         blockSize = 64800
         while True:
@@ -918,6 +983,9 @@ class Gateway:
                 self.sendBuffer[1].pop(0)
 
     def timeToSend(self, linkedSat):
+        """
+            模拟计算发送所用时间
+        """
         distance = linkedSat[0]
         pTime = distance/Vc
         return pTime
@@ -926,6 +994,7 @@ class Gateway:
         """
         Function which starts a receiveBlock process upon receiving a block from a transmitter.
         Adds the propagation time to the block attribute
+        创建接受数据块的进程
         """
 
         process = self.env.process(self.receiveBlock(block, propTime))
@@ -941,6 +1010,7 @@ class Gateway:
 
         While the transmission delay is handled at the transmitter, the transmitter cannot also wait for the propagation
         delay, otherwise the send-buffer might be overfilled.
+        接受数据块进程的实现
         """
         # wait for block to fully propagate
         yield self.env.timeout(propTime)
@@ -955,6 +1025,7 @@ class Gateway:
         """
         Calculates the distance to the specified cell (assumed the center of the cell).
         Calculation is based on the geopy package which uses the 'WGS-84' model for earth shape.
+        计算当前地面站到特定cell 可以理解成小区 的中心的距离
         """
         cellCoord = (math.degrees(cell.latitude), math.degrees(cell.longitude))  # cell lat and long is saved in a format which is not degrees
         gTCoord = (self.latitude, self.longitude)
@@ -965,6 +1036,7 @@ class Gateway:
         """
         Distance between GT and satellite is calculated using the distance formula based on the cartesian coordinates
         in 3D space.
+        计算地面站和卫星之间的距离
         """
 
         satCoords = [satellite.x, satellite.y, satellite.z]
@@ -974,6 +1046,11 @@ class Gateway:
         return distance
 
     def adjustDataRate(self):
+        """
+            用于 动态调整地面站 Gateway 与卫星通信数据速率 的核心方法
+            基于当前卫星距离、射频链路参数(如发射功率、天线增益)计算信噪比(SNR),并结合预定义的频谱效率阈值,确定实际可用的数据传输速率,确保通信性能符合物理层约束
+            不需要修改,是用来模拟真实卫星物理环境的
+        """
 
         speff_thresholds = np.array(
             [0, 0.434841, 0.490243, 0.567805, 0.656448, 0.789412, 0.889135, 0.988858, 1.088581, 1.188304, 1.322253,
@@ -1028,6 +1105,8 @@ class Gateway:
         The function uses a local indexing number to choose which satellite to add a reference to. If the satellite
         already has a reference, the GT checks if it is closer than the existing reference. If it is closer, it
         overwrites the reference and forces the other GT to add a reference to the next satellite it its own list.
+        基于距离排序后的卫星列表,为为地面站分配最近的可用卫星
+        若卫星已被其他地面站占用且距离更远,则强制原地面站重新选择下一个卫星
         """
         if self.satIndex >= len(self.satsOrdered):
             self.linkedSat = (None, None)
@@ -1062,6 +1141,7 @@ class Gateway:
         """
         Links the GT to the satellite chosen in the 'linkSats2GTs()' method in the Earth class and makes sure that the
         data rate for the RFlink to the satellite is updated.
+        建立地面站与卫星的连接,并调用adjustDataRate,来更新通信速率
         """
         self.linkedSat = (dist, sat)
         sat.linkedGT = self
@@ -1071,6 +1151,7 @@ class Gateway:
     def addCell(self, cellInfo):
         """
         Links a cell to the GT by adding the relevant information of the cell to the local list "cellsInRange".
+        通过在地面站的本地列表cellsInRange中添加cell的相关信息,来将cell和GT相连
         """
         self.cellsInRange.append(cellInfo)
 
@@ -1102,6 +1183,7 @@ class Gateway:
         one of the GTs.
 
         The information added to the "cellsWithinRange" list is used for generating flows from the cells to each GT.
+        查找地面站范围内的cell,并保证每个cell仅链接一个地面站
         """
 
         # Up right:
@@ -1221,6 +1303,7 @@ class Gateway:
         Calculates the average time it will take to fill up a data block and returns the actual time based on a
         random variable following an exponential distribution.
         The method parameter determines how the fractions of the data generation to each destination gateway are handled
+        计算填满数据块所需要的平均时间
         """
 
         if method == "fraction":
@@ -1259,6 +1342,8 @@ class Gateway:
 
             If this logic should be changed, it is important that it is done so in accordance with the
             "findCellsWithinRange" method.
+        用于计算 地面站 覆盖范围内所有小区的总平均流量 的核心方法,并且考虑了地面站的容量限制
+        核心作用是为后续 timeToFillBlock 方法提供流量数据,用于确定数据块填满所需时间
         """
 
         totalAvgFlow = 0
@@ -1296,6 +1381,8 @@ class Gateway:
         This function is used when a block is about to be transmitted if the path metric is set to "latency".
         The function updates the weights of the constellation graph to take into account the current queue sizes at all
         satellites. It also finds the new shortest path for the block based on the new weights.
+        动态更新星座图 Constellation Graph 边权重,并重新计算数据块最短路径 的核心方法
+        当路径选择策略基于“延迟 latency ”时,根据卫星当前队列状态调整图中边的延迟权重,确保路径选择反映网络实时负载,优化数据块传输延迟
         """
         for plane in self.earth.LEO:
             for satellite in plane.sats:
@@ -1321,6 +1408,9 @@ class Gateway:
 
 
 # A single cell on earth
+'''
+    用于建模卫星通信覆盖区域中的 地面小区 ,每个小区代表地球表面的一个地理区域,包含用户分布、地理位置、通信参数等信息
+'''
 class Cell:
     def __init__(self, total_x, total_y, cell_x, cell_y, users, Re=6378e3, f=20e9, bw=200e6, noise_power=1 / (1e11)):
         # X and Y coordinates of the cell on the dataset map
@@ -1348,6 +1438,9 @@ class Cell:
         self.gateway = None  # (groundstation, distance)
 
     def __repr__(self):
+        '''
+            返回小区的可读字符串描述,包含用户数、面积(转换为平方公里)、经纬度(度数)、三维坐标及地图坐标
+        '''
         return 'Users = {}\n area = {} km^2\n longitude = {} deg\n latitude = {} deg\n pos x = {}\n pos y = {}\n pos ' \
                'z = {}\n x position on map = {}\n y position on map = {}'.format(
                 self.users,
@@ -1365,6 +1458,7 @@ class Cell:
         Finds the closest gateway and updates the internal attribute 'self.gateway' as a tuple:
         (Gateway, distance to terminal). If the distance to the closest gateway is less than some maximum
         distance, the cell information is added to the gateway.
+        找到最近的地面站并更新 self.gateway,若距离≤maxDistance则将小区加入地面站覆盖列表,否则标记用户数为0
         """
         closestGT = (gateways[0], gateways[0].cellDistance(self))
         for gateway in gateways[1:]:
@@ -1381,8 +1475,21 @@ class Cell:
 
 
 # Earth consisting of cells
+'''
+    建模地球表面的地理环境、用户分布(通过小区 Cell )、地面站 Gateway 部署,以及卫星星座( LEO )的动态管理
+        加载人口分布数据(通过TIFF图像),生成地面小区网格
+        管理地面站与小区的覆盖关联 linkCells2GTs
+        管理卫星与地面站的连接 linkSats2GTs 
+        在星座移动时动态更新卫星的传输进程 updateSatelliteProcessesSimpler updateSatelliteProcessesCorrect
+'''
 class Earth:
     def __init__(self, env, img_path, gt_path, constellation, inputParams, deltaT, totalLocations, getRates = False, window=None):
+        '''
+            初始化地球对象,加载人口数据生成小区网格,导入地面站数据,初始化数据块生成进程,并创建卫星星座
+                通过TIFF图像加载人口分布,生成二维小区网格 self.cells
+                根据输入参数 inputParams 筛选或全选地面站 self.gateways 
+                启动卫星星座移动的Simpy进程 self.moveConstellation
+        '''
         # Input the population count data
         # img_path = 'Population Map/gpw_v4_population_count_rev11_2020_15_min.tif'
 
@@ -1486,6 +1593,7 @@ class Earth:
         """
         Finds the cells that are within the coverage areas of all GTs and links them ensuring that a cell only links to
         a single GT.
+        找到所有地面站覆盖范围内的小区并关联,确保每个小区仅连接一个地面站
         """
         start = time.time()
 
@@ -1499,6 +1607,7 @@ class Earth:
         start = time.time()
 
         # Add reference for cells to the GT they are closest to
+        # 为小区添加最近地面站的引用
         for cells in self.cells:
             for cell in cells:
                 if cell.gateway is not None:
@@ -1507,12 +1616,16 @@ class Earth:
                                                     cell.users,
                                                     cell.gateway[1]])
 
-        print("Time taken to add cell information to all GTs: {} seconds".format(time.time() - start))
+        print("Time taken to add cell information to all GTs: {} seconds".format(time.time() - start))  # 输出耗时
         print()
 
     def linkSats2GTs(self, method):
         """
         Links GTs to satellites. One satellite is only allowed to link to one GT.
+        将地面站与卫星连接。每个卫星仅允许连接一个地面站
+        支持两种策略
+            Greedy(贪心) ：每个地面站选择最近的卫星；
+            Optimize(优化) ：通过最小权匹配( linear_sum_assignment )全局优化连接。
         """
         sats = []
         for orbit in self.LEO:
@@ -1521,7 +1634,7 @@ class Earth:
                 sat.GTDist = None
                 sats.append(sat)
 
-        if method == "Greedy":
+        if method == "Greedy":  # 贪心算法
             for GT in self.gateways:
                 GT.orderSatsByDist(self.LEO)
                 GT.addRefOnSat()
@@ -1530,7 +1643,7 @@ class Earth:
                 for sat in orbit.sats:
                     if sat.linkedGT is not None:
                         sat.linkedGT.link2Sat(sat.GTDist, sat)
-        elif method == "Optimize":
+        elif method == "Optimize":  # 优化算法(最小权匹配)
             # make cost matrix
             SxGT = np.array([[99999 for _ in range(len(sats))] for _ in range(len(self.gateways))])
             for i, GT in enumerate(self.gateways):
@@ -1539,6 +1652,7 @@ class Earth:
                     SxGT[i][entry[2][0]] = val
 
             # find assignment of GSL which minimizes the cost from the cost matrix
+            # 求解最小权匹配(线性和分配问题)
             rowInd, colInd = linear_sum_assignment(SxGT)
 
             # link satellites and GTs
@@ -1551,7 +1665,8 @@ class Earth:
 
     def getCellUsers(self):
         """
-        Used for plotting the population map.
+            Used for plotting the population map.
+            返回所有小区的用户数,用于绘制人口分布地图
         """
         temp = []
         for i, cellList in enumerate(self.cells):
@@ -1573,6 +1688,12 @@ class Earth:
             blocks currently being transmitted.
             - All buffers are emptied and blocks are redistributed to new buffers according to the blocks' arrival time
             at the satellite.
+        可用于卫星进程更新的简化版本。但未考虑部分进程可能无需停止即可继续运行。停止进程可能丢失正在传输的块的时间。
+
+        该函数确保星座移动后所有卫星的进程更新,步骤如下：
+            - 所有等待发送或正在发送的块更新路径；
+            - 停止所有进程并根据当前链路重新创建(正在传输的块的传输进度丢失)；
+            - 清空所有缓冲区,根据块到达卫星的时间重新分配到新缓冲区。
         """
 
         # update ISL references in all satellites, adjust data rate to GTs and ensure send-processes are correct
@@ -1786,6 +1907,17 @@ class Earth:
 
         This function differentiates from the simple version by allowing continued operation of send-processes after
         constellation movement if the link is not broken.
+        该函数用于确保星座移动后所有卫星上的进程得到更新。这一过程通过以下几个步骤完成：
+            - 所有等待发送或当前正在发送的数据块的路径将被更新。
+            - 星间链路(ISL)将更新为指向新的跨轨道卫星引用(同轨道链路不会改变)。
+                - 这包括在ISL变更时更新缓冲区
+                - 还包括在ISL变更时重新创建发送进程
+                - 尽管同轨道链路不会改变,但同轨道缓冲区中的数据块可能需要移动。
+            - 地面站链路(GSL)将被更新：
+                - 根据新状态(卫星是否连接GSL)和旧状态(卫星之前是否连接GSL),相应处理GSL缓冲区和进程。
+            - 所有未被当前传输到卫星/地面站(且该链路仍作为ISL或GSL存在)的数据块,将根据其到达卫星的时间重新分配到发送缓冲区。
+
+        该函数与简化版本的区别在于：如果链路未断开,允许星座移动后继续运行现有的发送进程。
         """
         sats = []
         for plane in self.LEO:
@@ -2179,6 +2311,8 @@ class Earth:
         """
         Updates all paths for all GTs going to all other GTs and ensures that all blocks waiting to be sent has the
         correct path.
+        用于 更新所有地面站(GT, Gateway)到其他地面站的通信路径 ,并确保地面站发送缓冲区中待传输的数据块使用最新的正确路径
+        用来拓扑变化后 动态调整地面站间的路由路径
         """
         # make new paths for all GTs
         for GT in self.gateways:
@@ -2196,6 +2330,11 @@ class Earth:
                 block.isNewPath = True
 
     def getGSLDataRates(self):
+        """
+            收集卫星网络中地面站与卫星间的上下行数据速率(GSL, Ground-Satellite Link)
+            返回上行(地面站→卫星)和下行(卫星→地面站)的所有有效数据速率列表
+            为后续网络性能分析(如吞吐量统计、链路质量评估)提供基础数据
+        """
         upDataRates = []
         downDataRates = []
         for GT in self.gateways:
@@ -2210,6 +2349,11 @@ class Earth:
         return upDataRates, downDataRates
 
     def getISLDataRates(self):
+        """
+            收集卫星网络中星间链路(ISL, Inter-Satellite Link)的数据速率 
+            并统计其中超过3Gbps的高速链路数量,最终返回所有星间链路的数据速率列表
+            主要用于卫星网络性能分析(如链路带宽分布、高速链路占比等)
+        """
         interDataRates = []
         highRates = 0
         for orbit in self.LEO:
@@ -2221,6 +2365,11 @@ class Earth:
         return interDataRates
 
     def getFlowValues(self):
+        """
+            用于 计算并保存卫星网络中所有地面站(Gateway)之间的数据传输速率矩阵
+            最终将结果存储为CSV文件
+            为网络流量分析(如吞吐量分布、链路负载)提供基础数据
+        """
         block = DataBlock(self, self.gateways[0], str(1) + "_" + str(1) + "_" + str(1), 1)
         rates = np.ndarray((len(self.gateways), len(self.gateways)))
         for transmitterId, transmitter in enumerate(self.gateways):
@@ -2240,6 +2389,10 @@ class Earth:
         This function creates the table used for dividing the generated data to the different receiver gts. This
         function must be called after each gt has had its data rate calculated, so we can ensure that we are adhering
         to flow constraints for uplink and downlink.
+        用于 生成数据分配比例表 
+        目的是将生成地面站( generatorGTs )产生的数据按比例分配到接收地面站( receiverGTs )
+        同时确保接收地面站的下行链路(卫星→地面站)不会过载
+        明确标注该方法 当前未使用
         """
         fractions = np.zeros([len(self.generatorGTs), len(self.receiverGTs)])
 
@@ -2280,6 +2433,10 @@ class Earth:
         After the satellites have been moved a process of re-linking all links, both GSLs and ISLs, is conducted where
         the paths for all blocks are re-made, the blocks are moved (if necessary) to the correct buffers, and all
         processes managing the send-buffers are checked to ensure they will still work correctly.
+        
+        用于 动态移动卫星星座并更新网络拓扑 的核心Simpy进程函数
+        核心作用是模拟地球自转和卫星轨道运动导致的星座位置变化
+        通过重新 建立链路 更新路径和传输进程, 确保卫星网络通信的连续性
         """
 
         # Get the data rate for a intra plane ISL - used for testing
@@ -2326,6 +2483,10 @@ class Earth:
             self.updateGTPaths()
 
     def testFlowConstraint1(self, graph):
+        """
+            验证卫星网络拓扑图中链路距离是否符合流量约束条件
+            核心逻辑是通过计算地面站连接卫星的最小距离阈值, 统计拓扑图中超过该阈值的边的数量, 辅助判断网络链路的有效性
+        """
         highestDist = (0,0)
         for GT in self.gateways:
             if 1/GT.linkedSat[0] > highestDist[0]:
@@ -2342,6 +2503,13 @@ class Earth:
         print("number of edges with too large distance: {}".format(len(toolargeDists)))
 
     def testFlowConstraint2(self, graph):
+        """
+            验证卫星网络中地面站间路径是否符合流量约束条件
+                过验证地面站间路径的距离约束
+                确保卫星网络中的流量传输路径在物理层(如信号强度、传输延迟)上的合理性
+                避免因后续路径段过长导致的传输质量下降或链路中断
+                是网络路由算法验证的重要辅助逻辑
+        """
         edgeWeights = nx.get_edge_attributes(graph, "slant_range")
         totalFailed = 0
 
@@ -2351,7 +2519,7 @@ class Earth:
             try:
                 firstStep = GT.linkedSat[0]
             except KeyError:
-                firstStep = edgeWeights[(path[1][0], path[0][0])]
+                firstStep = edgeWeights[(path[1][0], path[0][0])] 
 
             for index in range(1, len(path) - 2):
                 try:
@@ -2367,6 +2535,10 @@ class Earth:
         print("number of GT paths that cannot meet flow restraints: {}".format(totalFailed))
 
     def plotMap(self, plotGT = True, plotSat = True, path = None, bottleneck = None):
+        """
+            用于 可视化卫星网络的全局拓扑. 支持绘制地面站(GT),卫星(Sat)的位置, 以及可选的通信路径(path)和瓶颈链路(bottleneck)
+            核心作用是通过地图形式直观展示卫星网络的分布、连接关系及关键路径，辅助分析网络覆盖和路由性能
+        """
         plt.figure()
         if plotGT:
             for GT in self.gateways:
@@ -2487,6 +2659,18 @@ class Earth:
 ###############################################################################
 
 
+"""
+    卫星网络仿真的 核心初始化函数
+    负责完成仿真前的所有关键准备工作
+    包括加载地理数据、构建卫星星座、建立地面站与卫星的连接、生成网络拓扑图、规划通信路径，以及初始化数据传输的缓冲区和进程
+    最终返回仿真所需的核心对象
+
+    关键作用为:
+        1. 物理拓扑构建: 建立地面站与卫星的连接, 生成星间链路和地面链路的网络拓扑
+        2. 路径规划: 预计算所有地面站对的最短路径, 确保数据传输的高效性
+        3. 传输初始化: 为卫星和地面站创建缓冲区和发送进程, 支撑后续的实时数据传输仿真
+        4. 流量控制: 通过识别瓶颈链路和设置流量生成策略, 避免网络过载, 保证仿真的真实性
+"""
 def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementTime, totalLocations):
     """
     Initializes an instance of the earth with cells from a population map and gateways from a csv file.
@@ -2500,6 +2684,7 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
         - Buffers and processes are created on all GTs and satellites used for sending the blocks throughout the network
     """
 
+    # 参数解析与标志设置
     constellationType = inputParams['Constellation'][0]
     fraction = inputParams['Fraction'][0]
     testType = inputParams['Test type'][0]
@@ -2510,11 +2695,13 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
         getRates = False
 
     # Load earth and gateways
+    # 初始化地球与地面站
     earth = Earth(env, popMapLocation, GTLocation, constellationType, inputParams, movementTime, totalLocations, getRates)
 
     print(earth)
     print()
 
+    # 连接地面站与覆盖区域, 优化卫星与地面站连接, 构建网络拓扑图
     earth.linkCells2GTs(distance)
     earth.linkSats2GTs("Optimize")
     graph = createGraph(earth)
@@ -2524,6 +2711,7 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
 
     paths = []
     # make paths for all source destination pairs
+    # 生成地面站之间的通信路径
     for GT in earth.gateways:
         for destination in earth.gateways:
             if GT != destination:
@@ -2533,6 +2721,7 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
                     paths.append(path)
 
     # add ISl references to all satellites and adjust data rate to GTs
+    # 添加轨道卫星到卫星列表
     sats = []
     for plane in earth.LEO:
         for sat in plane.sats:
@@ -2542,14 +2731,15 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
 
     pathNames = [name[0] for name in path]
 
+    # 初始化卫星链路与传输进程
     for plane in earth.LEO:
         for sat in plane.sats:
 
             if sat.linkedGT is not None:
-                sat.adjustDownRate()
+                sat.adjustDownRate()    # 调整卫星下行速率
                 # make a process for the GSL from sat to GT
-                sat.sendBlocksGT.append(sat.env.process(sat.sendBlock((sat.GTDist, sat.linkedGT), False)))
-            neighbors = list(nx.neighbors(graph, sat.ID))
+                sat.sendBlocksGT.append(sat.env.process(sat.sendBlock((sat.GTDist, sat.linkedGT), False)))  # 创建GSL发送进程
+            neighbors = list(nx.neighbors(graph, sat.ID))   # 获取卫星的星间链路邻居
             if len(neighbors) == 5:
                 fiveNeighbors[0][0] += 1
                 fiveNeighbors[1].append(neighbors)
@@ -2557,40 +2747,45 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
             for sat2 in sats:
 
                 if sat2.ID in neighbors:
-                    dataRate = nx.path_weight(graph,[sat2.ID, sat.ID], "dataRateOG")
-                    distance = nx.path_weight(graph,[sat2.ID, sat.ID], "slant_range")
+                    dataRate = nx.path_weight(graph,[sat2.ID, sat.ID], "dataRateOG")    # 获取链路数据速率
+                    distance = nx.path_weight(graph,[sat2.ID, sat.ID], "slant_range")   # 获取链路距离
 
                     # check if satellite is inter- or intra-plane
+                    # 区分同轨面（intra）和异轨面（inter）链路
                     if sat2.in_plane == sat.in_plane:
-                        sat.intraSats.append((distance, sat2, dataRate))
+                        sat.intraSats.append((distance, sat2, dataRate))                                                        # 同轨面链路列表
                         # make a send buffer for intra ISL ([self.env.event()], [DataBlock(0, 0, "0", 0)], 0)
-                        sat.sendBufferSatsIntra.append(([sat.env.event()], [], sat2.ID))
+                        sat.sendBufferSatsIntra.append(([sat.env.event()], [], sat2.ID))                                        # 同轨面发送缓冲区
                         # make a process for intra ISL
-                        sat.sendBlocksSatsIntra.append(sat.env.process(sat.sendBlock((distance, sat2, dataRate), True, True)))
+                        sat.sendBlocksSatsIntra.append(sat.env.process(sat.sendBlock((distance, sat2, dataRate), True, True)))  # 同轨面发送进程
                     else:
-                        sat.interSats.append((distance, sat2, dataRate))
+                        sat.interSats.append((distance, sat2, dataRate))                                                        # 异轨面链路列表
                         # make a send buffer for inter ISL ([self.env.event()], [DataBlock(0, 0, "0", 0)], 0)
-                        sat.sendBufferSatsInter.append(([sat.env.event()], [], sat2.ID))
+                        sat.sendBufferSatsInter.append(([sat.env.event()], [], sat2.ID))                                        # 异轨面发送缓冲区
                         # make a process for inter ISL
-                        sat.sendBlocksSatsInter.append(sat.env.process(sat.sendBlock((distance, sat2, dataRate), True, False)))
+                        sat.sendBlocksSatsInter.append(sat.env.process(sat.sendBlock((distance, sat2, dataRate), True, False))) # 异轨面发送进程
 
                     itt += 1
                     if itt == len(neighbors):
                         break
 
+    # 调用 findBottleneck 函数, 识别前两条路径的瓶颈链路 (即路径中数据速率最小的链路), 用于后续流量控制
     bottleneck2, minimum2 = findBottleneck(paths[1], earth, False)
     bottleneck1, minimum1 = findBottleneck(paths[0], earth, False, minimum2)
 
+    # 初始化地面站流量生成
     for GT in earth.gateways:
         mins = []
         if GT.linkedSat[0] is not None:
             for pathKey in GT.paths:
                 _, minimum = findBottleneck(GT.paths[pathKey], earth)
-                mins.append(minimum)
+                mins.append(minimum)    # 收集所有路径的最小带宽
+
+            # 根据地面站数据速率与卫星下行速率的比较, 选择流量生成策略. 优先使用数据速率较小的链路, 避免链路过载
             if GT.dataRate < GT.linkedSat[1].downRate:
-                GT.getTotalFlow(1, "Step", 1, GT.dataRate, fraction)  # using data rate of the GSL uplink
+                GT.getTotalFlow(1, "Step", 1, GT.dataRate, fraction)  # using data rate of the GSL uplink   使用GSL上行速率
             else:
-                GT.getTotalFlow(1, "Step", 1, GT.linkedSat[1].downRate, fraction)  # using data rate of the GSL downlink
+                GT.getTotalFlow(1, "Step", 1, GT.linkedSat[1].downRate, fraction)  # using data rate of the GSL downlink    使用GSL下行速率
 
             # alternative initializers for the generated flow:
             # GT.getTotalFlow(1, "Step", 1, np.amin(mins), fraction) # using the data rate of the path capacity
@@ -2604,6 +2799,11 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
     return earth, graph, bottleneck1, bottleneck2
 
 
+"""
+    用于 查找给定路径中的瓶颈链路
+    核心功能是遍历路径上的所有链路, 并记录每条链路的带宽, 最后返回带宽最小的链路及其带宽值
+    主要用于网络分析和优化, 帮助确定网络中的瓶颈链路, 从而进行流量控制和资源分配
+"""
 def findBottleneck(path, earth, plot = False, minimum = None):
     # Find the bottleneck of a route.
     bottleneck = [[], [], [], []]
@@ -2650,6 +2850,11 @@ def findBottleneck(path, earth, plot = False, minimum = None):
     return bottleneck, minimum
 
 
+"""
+    用于 创建卫星星座
+    主要功能是根据指定的星座类型和参数, 生成卫星网络的拓扑结构
+    包括轨道平面数(P), 每个轨道平面上的卫星数量(N_p), 卫星的高度(height), 轨道平面的倾斜角(inclination_angle), 卫星分布角度(distribution_angle), 以及是否采用Walker星型分布(Walker_star)
+"""
 def create_Constellation(specific_constellation, env):
 
     if specific_constellation == "small":               # Small Walker star constellation for tests.
