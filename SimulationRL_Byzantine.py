@@ -251,7 +251,7 @@ tablesPath  = './pre_trained_NNs/qTablesExport_2GTs_movement/'
 
 if __name__ == '__main__':
     # nnpath          = f'./pre_trained_NNs/qNetwork_8GTs.h5'
-    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs)
+    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_Byzantine/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs)
     populationMap   = 'Population Map/gpw_v4_population_count_rev11_2020_15_min.tif'
 
 ###############################################################################
@@ -266,6 +266,33 @@ downGSLRates        = []
 interRates          = []
 intraRate           = []
 
+# 联邦学习参数服务器初始全局模型
+FL_global_model_qNetwork = keras.models.load_model(nnpath)
+FL_global_model_qNetwork.summary()  # 打印模型结构和各层输出形状
+FL_global_model_qTarget  = keras.models.load_model(nnpathTarget)
+FL_global_model_qTarget.summary()   # 打印目标模型结构和各层输出形状
+
+
+###############################################################################
+###########################   Byzantine Attack  ###############################
+###############################################################################
+
+byzantine_attack_activated = True
+byzantine_node_ratio = 0.2
+# w是权重，b是偏置
+byzantine_fc1_w_N = [[] for k in range(140)]
+byzantine_fc2_w_N = [[] for k in range(140)]
+byzantine_fc3_w_N = [[] for k in range(140)]
+byzantine_fc1_b_N = [[] for k in range(140)]
+byzantine_fc2_b_N = [[] for k in range(140)]
+byzantine_fc3_b_N = [[] for k in range(140)]
+byzantine_fc1_w_B = [[] for k in range(140)]
+byzantine_fc2_w_B = [[] for k in range(140)]
+byzantine_fc3_w_B = [[] for k in range(140)]
+byzantine_fc1_b_B = [[] for k in range(140)]
+byzantine_fc2_b_B = [[] for k in range(140)]
+byzantine_fc3_b_B = [[] for k in range(140)]
+print(f'byzantine_fc1_w_N size: ', len(byzantine_fc1_w_N))
 
 def getBlockTransmissionStats(timeToSim, GTs, constellationType, earth):
     '''
@@ -368,7 +395,7 @@ def simProgress(simTimelimit, env):
 ###############################################################################
 
 FL_techs    = ['nothing', 'modelAnticipation', 'plane', 'full', 'combination']
-FL_tech     = FL_techs[4]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
+FL_tech     = FL_techs[3]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
 if FL_tech == 'combination':
     global FL_counter
     FL_counter = 1
@@ -449,10 +476,101 @@ def average_model_weights_q(weights_list):
     averaged_weights = [np.mean(weights_layer, axis=0) for weights_layer in zip(*weights_list)]
     return averaged_weights
 
-def full_federated_learning(models):
+def DistinguishHuber(local_data, global_data):
+    a = local_data
+    b = global_data
+    a_size = a.shape
+    print('a_size: ', a_size)
+    a_line = a.view([-1])
+    b_line = b.view([-1])
+    diff = a_line-b_line
+    H_diff = penal * diff
+    H_diff[diff.abs()>L_Huber] = diff[diff.abs()>L_Huber].sign() * beta * L_Huber
+    H_diff[diff.abs()<=L_Huber] = diff[diff.abs()<=L_Huber] * beta
+    #H_diff = [penal*diff[i] if diff[i]>L_Huber else (1/L_Huber)*beta*diff[i] for i in range(len(diff))]
+    H_diff = H_diff.view(a_size)
+    return H_diff
+
+def DistinguishHuber_B(local_data, global_data):
+    a = local_data
+    b = global_data
+    a_size = a.size()
+    a_line = a.view([-1])
+    b_line = b.view([-1])
+    diff = (10000)*a_line-b_line#Byzantine Attack
+    H_diff = penal * diff
+    H_diff[diff.abs()>L_Huber] = diff[diff.abs()>L_Huber].sign() * beta * L_Huber
+    H_diff[diff.abs()<=L_Huber] = diff[diff.abs()<=L_Huber] * beta
+    #H_diff = [penal*diff[i] if diff[i]>L_Huber else (1/L_Huber)*beta*diff[i] for i in range(len(diff))]
+    H_diff = H_diff.view(a_size)
+    return H_diff
+
+def record_huber_loss_diff_all_nodes(models):
+    """
+        记录所有节点的Huber损失差值，包括该节点在正常情况下的损失和攻击情况下的损失，包含全连接层的权重和偏置。
+    """
+    node_num = len(models)
+    for k in range(node_num):
+        byzantine_fc1_w_N[k] = DistinguishHuber(models[k].get_layer('dense').get_weights()[0], FL_global_model_qNetwork.get_layer('dense').get_weights()[0])
+        byzantine_fc2_w_N[k] = DistinguishHuber(models[k].get_layer('dense_1').get_weights()[0], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[0])
+        byzantine_fc3_w_N[k] = DistinguishHuber(models[k].get_layer('dense_2').get_weights()[0], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[0])
+        byzantine_fc1_b_N[k] = DistinguishHuber(models[k].get_layer('dense').get_weights()[1], FL_global_model_qNetwork.get_layer('dense').get_weights()[1])
+        byzantine_fc2_b_N[k] = DistinguishHuber(models[k].get_layer('dense_1').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[1])
+        byzantine_fc3_b_N[k] = DistinguishHuber(models[k].get_layer('dense_2').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[1])
+
+        byzantine_fc1_w_B[k] = DistinguishHuber_B(models[k].get_layer('dense').get_weights()[0], FL_global_model_qNetwork.get_layer('dense').get_weights()[0])
+        byzantine_fc2_w_B[k] = DistinguishHuber_B(models[k].get_layer('dense_1').get_weights()[0], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[0])
+        byzantine_fc3_w_B[k] = DistinguishHuber_B(models[k].get_layer('dense_2').get_weights()[0], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[0])
+        byzantine_fc1_b_B[k] = DistinguishHuber_B(models[k].get_layer('dense').get_weights()[1], FL_global_model_qNetwork.get_layer('dense').get_weights()[1])
+        byzantine_fc2_b_B[k] = DistinguishHuber_B(models[k].get_layer('dense_1').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[1])
+        byzantine_fc3_b_B[k] = DistinguishHuber_B(models[k].get_layer('dense_2').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[1])
+
+def byzantine_attack(models, byzantine_node_ratio):
+    """
+    对模型进行拜占庭攻击，随机选择一定比例的模型
+    :param byzantine_node_ratio: 拜占庭节点比例（0~1之间的浮点数）
+    :return: 返回修改后的受到攻击的节点信息列表
+    """
+    # 计算需要攻击的模型数量
+    num_models = len(models)
+    num_byzantine = int(num_models * byzantine_node_ratio)
+    if num_byzantine == 0:
+        print("无模型被攻击（byzantine_node_ratio过小）")
+        return
+
+    # 随机选择被攻击的模型索引
+    byzantine_indices = random.sample(range(num_models), num_byzantine)
+    print(f"本次攻击选中的模型索引: {byzantine_indices}")
+    return byzantine_indices
+
+def full_federated_learning_raw(models):
     averaged_weights = average_model_weights(models)
     for model in models:
         model.set_weights(averaged_weights)
+
+def full_federated_learning_via_ps(models):
+    """
+        全局聚合经由全局参数服务器
+    """
+    averaged_weights = average_model_weights(models)
+    FL_global_model_qNetwork.set_weights(averaged_weights)
+    for model in models:
+        model = FL_global_model_qNetwork
+
+def full_federated_learning(models):
+    record_huber_loss_diff_all_nodes(models)
+    attacked_nodes_indices = byzantine_attack(models, byzantine_node_ratio)
+    global_weights = FL_global_model_qNetwork.get_weights()
+    print(f"\n[全局参数] 总共有 {len(global_weights)} 个参数数组（每层包含权重和偏置各一个）")
+
+    # 遍历每个参数数组，打印其形状（对应层的权重/偏置维度）
+    for i, arr in enumerate(global_weights):
+        layer_type = "权重" if i % 2 == 0 else "偏置"  # 偶数索引为权重，奇数为偏置
+        layer_idx = (i // 2) + 1                      # 当前层序号（从 1 开始）
+        print(f"[层 {layer_idx} {layer_type}] 形状: {arr.shape}")
+
+    dense_weight_grad = 0.01 * global_weights[0] - torch.stack([hb_fc1_w_0_B[k] if k<B else hb_fc1_w_0_N[k] for k in range(10)],2).sum(axis=2)
+
 
 def full_federated_learning_q(models):
     """全局联邦平均（带量化机制）"""
@@ -604,6 +722,9 @@ def model_anticipation_federate(models, model_names):
             new_weights = [(w1 + w2) / 2 for w1, w2 in zip(current_weights, prev_model_weights)]
             current_model.set_weights(new_weights)
 
+# def model_anticipation_federate_byzantine(models, model_names):
+
+
 def update_sats_models(earth, models, model_names):
     '''Update each satellite model for the updated one'''
     print('Updating satellites models...')
@@ -658,6 +779,8 @@ def perform_FL(earth):#, outputPath):
 
     data = generate_test_data(num_samples, include_not_avail=False)
     models, model_names = get_models(earth)
+
+    byzantine_attack(models, byzantine_node_ratio)
 
     CKA_Values_before = compute_full_cka_matrix(models, data)
 
@@ -3516,7 +3639,6 @@ class Earth:
 
         while True:
             print('Creating/Moving constellation: Updating satellites position and links.')
-            print('GetRates: ', getRates)
             if getRates:
                 # get data rates for all inter plane ISLs and all GSLs (up and down) - used for testing
                 upDataRates, downDataRates = self.getGSLDataRates()
@@ -3531,7 +3653,6 @@ class Earth:
                 for val in inter:
                     interRates.append(val)
 
-            print('deltaT: ', deltaT)
             yield env.timeout(deltaT)
             # clear satellite references on all GTs
             for GT in self.gateways:
@@ -3559,7 +3680,6 @@ class Earth:
 
             self.updateGTPaths()
             self.nMovs += 1
-            print('move const中的saveISLs: ', saveISLs)
             if saveISLs:
                 print('Constellation moved! Saving ISLs map...')
                 islpath = outputPath + '/ISL_maps/'
@@ -3568,7 +3688,6 @@ class Earth:
                 plt.close()
 
             # Perform Federated Learning
-            print('FL_Test in move const: ', FL_Test)
             if FL_Test:
                 global const_moved
                 const_moved = True
