@@ -556,6 +556,28 @@ def federate_by_plane_q(models, model_names):
         for model, _, _ in plane_models:
             model.set_weights(averaged_weights)
 
+def model_anticipation_federate(models, model_names):
+    """Perform Model Anticipation Federated Learning."""
+    plane_dict = {}
+    # Group models by orbital plane
+    for model, name in zip(models, model_names):
+        plane = name.split('_')[0]
+        if plane not in plane_dict:
+            plane_dict[plane] = []
+        plane_dict[plane].append((model, name))
+    
+    # Process each plane for model anticipation
+    for plane_models in plane_dict.values():
+        # Sort models by their identifiers within the plane
+        plane_models.sort(key=lambda x: int(x[1].split('_')[1]))
+        for i in range(1, len(plane_models)):
+            prev_model_weights = plane_models[i - 1][0].get_weights()
+            current_model = plane_models[i][0]
+            current_weights = current_model.get_weights()
+            # Average weights from the previous model
+            new_weights = [(w1 + w2) / 2 for w1, w2 in zip(current_weights, prev_model_weights)]
+            current_model.set_weights(new_weights)
+
 def model_anticipation_federate_q(models, model_names):
     """Perform Model Anticipation Federated Learning with quantization."""
     plane_dict = {}  
@@ -580,28 +602,6 @@ def model_anticipation_federate_q(models, model_names):
 
             # 平均当前模型权重与量化后的前一个模型权重
             new_weights = [(w1 + w2) / 2 for w1, w2 in zip(current_weights, quantized_prev_weights)]
-            current_model.set_weights(new_weights)
-
-def model_anticipation_federate(models, model_names):
-    """Perform Model Anticipation Federated Learning."""
-    plane_dict = {}
-    # Group models by orbital plane
-    for model, name in zip(models, model_names):
-        plane = name.split('_')[0]
-        if plane not in plane_dict:
-            plane_dict[plane] = []
-        plane_dict[plane].append((model, name))
-    
-    # Process each plane for model anticipation
-    for plane_models in plane_dict.values():
-        # Sort models by their identifiers within the plane
-        plane_models.sort(key=lambda x: int(x[1].split('_')[1]))
-        for i in range(1, len(plane_models)):
-            prev_model_weights = plane_models[i - 1][0].get_weights()
-            current_model = plane_models[i][0]
-            current_weights = current_model.get_weights()
-            # Average weights from the previous model
-            new_weights = [(w1 + w2) / 2 for w1, w2 in zip(current_weights, prev_model_weights)]
             current_model.set_weights(new_weights)
 
 def update_sats_models(earth, models, model_names):
