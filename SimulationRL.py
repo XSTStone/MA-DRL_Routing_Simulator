@@ -6813,12 +6813,9 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
         print('simulationTimelimit: ', simulationTimelimit)
         progress = env.process(simProgress(simulationTimelimit, env))
         startTime = time.time()
-        print('Test Ok1')
         # earth1.moveConstellation()
         env.run(simulationTimelimit)
-        print('Test Ok2')
         timeToSim = time.time() - startTime
-        print('Test Ok0')
 
         if testType == "Rates":
             plotRatesFigures()
@@ -6851,8 +6848,7 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
                 print('Plotting latencies...')
                 plotSaveAllLatencies(outputPath, GTnumber, allLatencies, epsDF)
             
-            print('测试用')
-            print('pathing: ', pathing)
+
             if pathing == "Deep Q-Learning":
                 # save losses
                 save_losses(outputPath, earth1, GTnumber)
@@ -6866,7 +6862,6 @@ def RunSimulation(GTs, inputPath, outputPath, populationData, radioKM):
                 print('Plotting latencies...')
                 plotSaveAllLatencies(outputPath, GTnumber, allLatencies)
 
-        print('Test Ok')
         plotShortestPath(earth1, pathBlocks[1][-1].path, outputPath)
         if not onlinePhase:
             plotQueues(earth1.queues, outputPath, GTnumber)
