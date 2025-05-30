@@ -279,6 +279,10 @@ FL_global_model_qTarget.summary()   # 打印目标模型结构和各层输出形
 
 byzantine_attack_activated = True
 byzantine_node_ratio = 0.2
+penal = 0.001
+L_Huber = 5 * pow(0.1,3)
+beta = 0.2
+lr_full_federate = 0.002  # 全局联邦学习学习率
 # w是权重，b是偏置
 byzantine_fc1_w_N = [[] for k in range(140)]
 byzantine_fc2_w_N = [[] for k in range(140)]
@@ -479,30 +483,27 @@ def average_model_weights_q(weights_list):
 def DistinguishHuber(local_data, global_data):
     a = local_data
     b = global_data
-    a_size = a.shape
-    print('a_size: ', a_size)
-    a_line = a.view([-1])
-    b_line = b.view([-1])
+    a_shape = a.shape
+    a_line = a.ravel()
+    b_line = b.ravel()
     diff = a_line-b_line
     H_diff = penal * diff
-    H_diff[diff.abs()>L_Huber] = diff[diff.abs()>L_Huber].sign() * beta * L_Huber
-    H_diff[diff.abs()<=L_Huber] = diff[diff.abs()<=L_Huber] * beta
-    #H_diff = [penal*diff[i] if diff[i]>L_Huber else (1/L_Huber)*beta*diff[i] for i in range(len(diff))]
-    H_diff = H_diff.view(a_size)
+    H_diff[np.abs(diff)>L_Huber] = np.sign(diff[np.abs(diff)>L_Huber]) * beta * L_Huber
+    H_diff[np.abs(diff)<=L_Huber] = diff[np.abs(diff)<=L_Huber] * beta
+    H_diff = H_diff.reshape(a_shape)
     return H_diff
 
 def DistinguishHuber_B(local_data, global_data):
     a = local_data
     b = global_data
-    a_size = a.size()
-    a_line = a.view([-1])
-    b_line = b.view([-1])
+    a_shape = a.shape
+    a_line = a.ravel()
+    b_line = b.ravel()
     diff = (10000)*a_line-b_line#Byzantine Attack
     H_diff = penal * diff
-    H_diff[diff.abs()>L_Huber] = diff[diff.abs()>L_Huber].sign() * beta * L_Huber
-    H_diff[diff.abs()<=L_Huber] = diff[diff.abs()<=L_Huber] * beta
-    #H_diff = [penal*diff[i] if diff[i]>L_Huber else (1/L_Huber)*beta*diff[i] for i in range(len(diff))]
-    H_diff = H_diff.view(a_size)
+    H_diff[np.abs(diff)>L_Huber] = np.sign(diff[np.abs(diff)>L_Huber]) * beta * L_Huber
+    H_diff[np.abs(diff)<=L_Huber] = diff[np.abs(diff)<=L_Huber] * beta
+    H_diff = H_diff.reshape(a_shape)
     return H_diff
 
 def record_huber_loss_diff_all_nodes(models):
@@ -518,6 +519,7 @@ def record_huber_loss_diff_all_nodes(models):
         byzantine_fc2_b_N[k] = DistinguishHuber(models[k].get_layer('dense_1').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[1])
         byzantine_fc3_b_N[k] = DistinguishHuber(models[k].get_layer('dense_2').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[1])
 
+        # Byzantine攻击的Huber差异值
         byzantine_fc1_w_B[k] = DistinguishHuber_B(models[k].get_layer('dense').get_weights()[0], FL_global_model_qNetwork.get_layer('dense').get_weights()[0])
         byzantine_fc2_w_B[k] = DistinguishHuber_B(models[k].get_layer('dense_1').get_weights()[0], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[0])
         byzantine_fc3_w_B[k] = DistinguishHuber_B(models[k].get_layer('dense_2').get_weights()[0], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[0])
@@ -561,15 +563,41 @@ def full_federated_learning(models):
     record_huber_loss_diff_all_nodes(models)
     attacked_nodes_indices = byzantine_attack(models, byzantine_node_ratio)
     global_weights = FL_global_model_qNetwork.get_weights()
-    print(f"\n[全局参数] 总共有 {len(global_weights)} 个参数数组（每层包含权重和偏置各一个）")
 
-    # 遍历每个参数数组，打印其形状（对应层的权重/偏置维度）
-    for i, arr in enumerate(global_weights):
-        layer_type = "权重" if i % 2 == 0 else "偏置"  # 偶数索引为权重，奇数为偏置
-        layer_idx = (i // 2) + 1                      # 当前层序号（从 1 开始）
-        print(f"[层 {layer_idx} {layer_type}] 形状: {arr.shape}")
+    # 计算全局参数的梯度，包含全连接层的权重和偏置
+    dense_weight_grad  = 0.01 * global_weights[0] - np.stack([byzantine_fc1_w_B[k] if k in attacked_nodes_indices else byzantine_fc1_w_N[k] for k in range(len(models))], axis=2).sum(axis=2)
+    dense1_weight_grad = 0.01 * global_weights[2] - np.stack([byzantine_fc2_w_B[k] if k in attacked_nodes_indices else byzantine_fc2_w_N[k] for k in range(len(models))], axis=2).sum(axis=2)
+    dense2_weight_grad = 0.01 * global_weights[4] - np.stack([byzantine_fc3_w_B[k] if k in attacked_nodes_indices else byzantine_fc3_w_N[k] for k in range(len(models))], axis=2).sum(axis=2)
+    dense_bias_grad    = 0.01 * global_weights[1] - np.stack([byzantine_fc1_b_B[k] if k in attacked_nodes_indices else byzantine_fc1_b_N[k] for k in range(len(models))], axis=1).sum(axis=1)
+    dense1_bias_grad   = 0.01 * global_weights[3] - np.stack([byzantine_fc2_b_B[k] if k in attacked_nodes_indices else byzantine_fc2_b_N[k] for k in range(len(models))], axis=1).sum(axis=1)
+    dense2_bias_grad   = 0.01 * global_weights[5] - np.stack([byzantine_fc3_b_B[k] if k in attacked_nodes_indices else byzantine_fc3_b_N[k] for k in range(len(models))], axis=1).sum(axis=1)
+    
+    updated_weights = [
+        global_weights[0] - lr_full_federate * dense_weight_grad,   # dense层权重更新
+        global_weights[1] - lr_full_federate * dense_bias_grad,     # dense层偏置更新
+        global_weights[2] - lr_full_federate * dense1_weight_grad,  # dense1层权重更新
+        global_weights[3] - lr_full_federate * dense1_bias_grad,    # dense1层偏置更新
+        global_weights[4] - lr_full_federate * dense2_weight_grad,  # dense2层权重更新
+        global_weights[5] - lr_full_federate * dense2_bias_grad     # dense2层偏置更新
+    ]
 
-    dense_weight_grad = 0.01 * global_weights[0] - torch.stack([hb_fc1_w_0_B[k] if k<B else hb_fc1_w_0_N[k] for k in range(10)],2).sum(axis=2)
+    FL_global_model_qNetwork.set_weights(updated_weights)
+
+    global_weights = FL_global_model_qNetwork.get_weights()
+
+    for local_model in models:
+        local_model.set_weights(global_weights)
+    
+    # print(f"[全局参数] 第一层全连接层权重形状: {updated_weights[0].shape}")
+    # print(f"[全局参数] 第一层全连接层权重: {updated_weights[0]}")
+    # print(f"[全局参数] 第一层全连接层偏置形状: {updated_weights[1].shape}")
+    # print(f"[全局参数] 第一层全连接层偏置: {updated_weights[1]}")
+
+    # print(f"[本地参数] 第一层全连接层权重形状: {models[0].get_layer('dense').get_weights()[0].shape}")
+    # print(f"[本地参数] 第一层全连接层权重: {models[0].get_layer('dense').get_weights()[0]}")
+    # print(f"[本地参数] 第一层全连接层偏置形状: {models[0].get_layer('dense').get_weights()[1].shape}")
+    # print(f"[本地参数] 第一层全连接层偏置: {models[0].get_layer('dense').get_weights()[1]}")
+
 
 
 def full_federated_learning_q(models):
@@ -721,9 +749,6 @@ def model_anticipation_federate(models, model_names):
             # Average weights from the previous model
             new_weights = [(w1 + w2) / 2 for w1, w2 in zip(current_weights, prev_model_weights)]
             current_model.set_weights(new_weights)
-
-# def model_anticipation_federate_byzantine(models, model_names):
-
 
 def update_sats_models(earth, models, model_names):
     '''Update each satellite model for the updated one'''
