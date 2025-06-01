@@ -368,7 +368,7 @@ def simProgress(simTimelimit, env):
 ###############################################################################
 
 FL_techs    = ['nothing', 'modelAnticipation', 'plane', 'full', 'combination']
-FL_tech     = FL_techs[4]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
+FL_tech     = FL_techs[3]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
 if FL_tech == 'combination':
     global FL_counter
     FL_counter = 1

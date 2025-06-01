@@ -251,7 +251,7 @@ tablesPath  = './pre_trained_NNs/qTablesExport_2GTs_movement/'
 
 if __name__ == '__main__':
     # nnpath          = f'./pre_trained_NNs/qNetwork_8GTs.h5'
-    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_Byzantine/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs)
+    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_Byzantine_clipNorm/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs)
     populationMap   = 'Population Map/gpw_v4_population_count_rev11_2020_15_min.tif'
 
 ###############################################################################
@@ -527,6 +527,28 @@ def record_huber_loss_diff_all_nodes(models):
         byzantine_fc2_b_B[k] = DistinguishHuber_B(models[k].get_layer('dense_1').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_1').get_weights()[1])
         byzantine_fc3_b_B[k] = DistinguishHuber_B(models[k].get_layer('dense_2').get_weights()[1], FL_global_model_qNetwork.get_layer('dense_2').get_weights()[1])
 
+def calculate_model_norm(model):
+    """计算模型所有参数的L2范数之和（适配Keras框架）"""
+    paranorm_sum = 0.0
+    # 获取模型所有参数（numpy数组列表，顺序：各层权重+偏置交替）
+    model_params = model.get_weights()
+    for param in model_params:
+        # 计算单个参数的L2范数并累加
+        paranorm_sum += np.linalg.norm(param)  # 等价于torch.norm的L2范数计算
+    return paranorm_sum
+
+def clip_para_norm(para_norm, max_norm):
+    """
+    对全局模型参数进行裁剪，限制其范数不超过指定值。
+    :param gradients: 梯度列表
+    :param max_norm: 最大范数
+    """
+    print(f'para_norm before clipping: {para_norm}, max_norm: {max_norm}')
+    if para_norm > max_norm:
+        current_weights = FL_global_model_qNetwork.get_weights()
+        updated_params = [1000 * param / para_norm for param in current_params]
+        FL_global_model_qNetwork.set_weights(updated_params)
+
 def byzantine_attack(models, byzantine_node_ratio):
     """
     对模型进行拜占庭攻击，随机选择一定比例的模型
@@ -582,6 +604,8 @@ def full_federated_learning(models):
     ]
 
     FL_global_model_qNetwork.set_weights(updated_weights)
+
+    clip_para_norm(calculate_model_norm(FL_global_model_qNetwork), 1000)
 
     global_weights = FL_global_model_qNetwork.get_weights()
 
