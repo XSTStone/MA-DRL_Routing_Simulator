@@ -1,0 +1,241 @@
+Nº of Gateways: 31
+Routing metric: Deep Q-Learning
+----------------------------------
+Time:
+21:59:03
+Locations:
+0         Malaga
+1    Los Angeles
+Name: Locations, dtype: object
+Movement Time: 4
+Rotation Factor: 290.272
+Minimum epsilon: 0.001
+Reward for deliver: 50
+Stop Loss: False, number of samples considered: 50, threshold: 0.5
+----------------------------------
+Fraction of traffic generated: 0.5, test type: Latency
+Using Kepler constellation design
+在init中运行了move Const
+total divisions in x = 1440
+ total divisions in y = 720
+ total cells = 1036800
+ window of operation (longitudes) = (0, 1440)
+ window of operation (latitudes) = (0, 720)
+
+Finding cells within coverage area of GT 1 of 2Finding cells within coverage area of GT 2 of 2
+Time taken to find cells that are within range of all GTs: 0.46379661560058594 seconds
+Time taken to add cell information to all GTs: 0.05341315269470215 seconds
+
+Matching: Greedy
+Removing duplicated links...
+Establishing remaining edges...
+Biggest slant range between satellites: 3708.31 km
+----------------------------------
+Traffic generated per GT (totalAvgFlow per Milliard):
+----------------------------------
+Malaga, Spain: 1.051607
+Los Angeles, California, US: 0.92582375
+----------------------------------
+----------------------------------
+Creating satellites agents...
+Importing the Neural networks from: 
+./pre_trained_NNs/qNetwork_2GTs_lastHop.h5
+./pre_trained_NNs/qTarget_2GTs_lastHop.h5
+Satellite 0_0 Q-Network imported!
+Satellite 0_0 Q-Target imported!
+Satellite 0_1 Q-Network imported!
+Satellite 0_1 Q-Target imported!
+Satellite 0_2 Q-Network imported!
+Satellite 0_2 Q-Target imported!
+Satellite 0_3 Q-Network imported!
+Satellite 0_3 Q-Target imported!
+Satellite 0_4 Q-Network imported!
+Satellite 0_4 Q-Target imported!
+Satellite 0_5 Q-Network imported!
+Satellite 0_5 Q-Target imported!
+Satellite 0_6 Q-Network imported!
+Satellite 0_6 Q-Target imported!
+Satellite 0_7 Q-Network imported!
+Satellite 0_7 Q-Target imported!
+Satellite 0_8 Q-Network imported!
+Satellite 0_8 Q-Target imported!
+Satellite 0_9 Q-Network imported!
+Satellite 0_9 Q-Target imported!
+Satellite 0_10 Q-Network imported!
+Satellite 0_10 Q-Target imported!
+Satellite 0_11 Q-Network imported!
+Satellite 0_11 Q-Target imported!
+Satellite 0_12 Q-Network imported!
+Satellite 0_12 Q-Target imported!
+Satellite 0_13 Q-Network imported!
+Satellite 0_13 Q-Target imported!
+Satellite 0_14 Q-Network imported!
+Satellite 0_14 Q-Target imported!
+Satellite 0_15 Q-Network imported!
+Satellite 0_15 Q-Target imported!
+Satellite 0_16 Q-Network imported!
+Satellite 0_16 Q-Target imported!
+Satellite 0_17 Q-Network imported!
+Satellite 0_17 Q-Target imported!
+Satellite 0_18 Q-Network imported!
+Satellite 0_18 Q-Target imported!
+Satellite 0_19 Q-Network imported!
+Satellite 0_19 Q-Target imported!
+Satellite 1_0 Q-Network imported!
+Satellite 1_0 Q-Target imported!
+Satellite 1_1 Q-Network imported!
+Satellite 1_1 Q-Target imported!
+Satellite 1_2 Q-Network imported!
+Satellite 1_2 Q-Target imported!
+Satellite 1_3 Q-Network imported!
+Satellite 1_3 Q-Target imported!
+Satellite 1_4 Q-Network imported!
+Satellite 1_4 Q-Target imported!
+Satellite 1_5 Q-Network imported!
+Satellite 1_5 Q-Target imported!
+Satellite 1_6 Q-Network imported!
+Satellite 1_6 Q-Target imported!
+Satellite 1_7 Q-Network imported!
+Satellite 1_7 Q-Target imported!
+Satellite 1_8 Q-Network imported!
+Satellite 1_8 Q-Target imported!
+Satellite 1_9 Q-Network imported!
+Satellite 1_9 Q-Target imported!
+Satellite 1_10 Q-Network imported!
+Satellite 1_10 Q-Target imported!
+Satellite 1_11 Q-Network imported!
+Satellite 1_11 Q-Target imported!
+Satellite 1_12 Q-Network imported!
+Satellite 1_12 Q-Target imported!
+Satellite 1_13 Q-Network imported!
+Satellite 1_13 Q-Target imported!
+Satellite 1_14 Q-Network imported!
+Satellite 1_14 Q-Target imported!
+Satellite 1_15 Q-Network imported!
+Satellite 1_15 Q-Target imported!
+Satellite 1_16 Q-Network imported!
+Satellite 1_16 Q-Target imported!
+Satellite 1_17 Q-Network imported!
+Satellite 1_17 Q-Target imported!
+Satellite 1_18 Q-Network imported!
+Satellite 1_18 Q-Target imported!
+Satellite 1_19 Q-Network imported!
+Satellite 1_19 Q-Target imported!
+Satellite 2_0 Q-Network imported!
+Satellite 2_0 Q-Target imported!
+Satellite 2_1 Q-Network imported!
+Satellite 2_1 Q-Target imported!
+Satellite 2_2 Q-Network imported!
+Satellite 2_2 Q-Target imported!
+Satellite 2_3 Q-Network imported!
+Satellite 2_3 Q-Target imported!
+Satellite 2_4 Q-Network imported!
+Satellite 2_4 Q-Target imported!
+Satellite 2_5 Q-Network imported!
+Satellite 2_5 Q-Target imported!
+Satellite 2_6 Q-Network imported!
+Satellite 2_6 Q-Target imported!
+Satellite 2_7 Q-Network imported!
+Satellite 2_7 Q-Target imported!
+Satellite 2_8 Q-Network imported!
+Satellite 2_8 Q-Target imported!
+Satellite 2_9 Q-Network imported!
+Satellite 2_9 Q-Target imported!
+Satellite 2_10 Q-Network imported!
+Satellite 2_10 Q-Target imported!
+Satellite 2_11 Q-Network imported!
+Satellite 2_11 Q-Target imported!
+Satellite 2_12 Q-Network imported!
+Satellite 2_12 Q-Target imported!
+Satellite 2_13 Q-Network imported!
+Satellite 2_13 Q-Target imported!
+Satellite 2_14 Q-Network imported!
+Satellite 2_14 Q-Target imported!
+Satellite 2_15 Q-Network imported!
+Satellite 2_15 Q-Target imported!
+Satellite 2_16 Q-Network imported!
+Satellite 2_16 Q-Target imported!
+Satellite 2_17 Q-Network imported!
+Satellite 2_17 Q-Target imported!
+Satellite 2_18 Q-Network imported!
+Satellite 2_18 Q-Target imported!
+Satellite 2_19 Q-Network imported!
+Satellite 2_19 Q-Target imported!
+Satellite 3_0 Q-Network imported!
+Satellite 3_0 Q-Target imported!
+Satellite 3_1 Q-Network imported!
+Satellite 3_1 Q-Target imported!
+Satellite 3_2 Q-Network imported!
+Satellite 3_2 Q-Target imported!
+Satellite 3_3 Q-Network imported!
+Satellite 3_3 Q-Target imported!
+Satellite 3_4 Q-Network imported!
+Satellite 3_4 Q-Target imported!
+Satellite 3_5 Q-Network imported!
+Satellite 3_5 Q-Target imported!
+Satellite 3_6 Q-Network imported!
+Satellite 3_6 Q-Target imported!
+Satellite 3_7 Q-Network imported!
+Satellite 3_7 Q-Target imported!
+Satellite 3_8 Q-Network imported!
+Satellite 3_8 Q-Target imported!
+Satellite 3_9 Q-Network imported!
+Satellite 3_9 Q-Target imported!
+Satellite 3_10 Q-Network imported!
+Satellite 3_10 Q-Target imported!
+Satellite 3_11 Q-Network imported!
+Satellite 3_11 Q-Target imported!
+Satellite 3_12 Q-Network imported!
+Satellite 3_12 Q-Target imported!
+Satellite 3_13 Q-Network imported!
+Satellite 3_13 Q-Target imported!
+Satellite 3_14 Q-Network imported!
+Satellite 3_14 Q-Target imported!
+Satellite 3_15 Q-Network imported!
+Satellite 3_15 Q-Target imported!
+Satellite 3_16 Q-Network imported!
+Satellite 3_16 Q-Target imported!
+Satellite 3_17 Q-Network imported!
+Satellite 3_17 Q-Target imported!
+Satellite 3_18 Q-Network imported!
+Satellite 3_18 Q-Target imported!
+Satellite 3_19 Q-Network imported!
+Satellite 3_19 Q-Target imported!
+Satellite 4_0 Q-Network imported!
+Satellite 4_0 Q-Target imported!
+Satellite 4_1 Q-Network imported!
+Satellite 4_1 Q-Target imported!
+Satellite 4_2 Q-Network imported!
+Satellite 4_2 Q-Target imported!
+Satellite 4_3 Q-Network imported!
+Satellite 4_3 Q-Target imported!
+Satellite 4_4 Q-Network imported!
+Satellite 4_4 Q-Target imported!
+Satellite 4_5 Q-Network imported!
+Satellite 4_5 Q-Target imported!
+Satellite 4_6 Q-Network imported!
+Satellite 4_6 Q-Target imported!
+Satellite 4_7 Q-Network imported!
+Satellite 4_7 Q-Target imported!
+Satellite 4_8 Q-Network imported!
+Satellite 4_8 Q-Target imported!
+Satellite 4_9 Q-Network imported!
+Satellite 4_9 Q-Target imported!
+Satellite 4_10 Q-Network imported!
+Satellite 4_10 Q-Target imported!
+Satellite 4_11 Q-Network imported!
+Satellite 4_11 Q-Target imported!
+Satellite 4_12 Q-Network imported!
+Satellite 4_12 Q-Target imported!
+Satellite 4_13 Q-Network imported!
+Satellite 4_13 Q-Target imported!
+Satellite 4_14 Q-Network imported!
+Satellite 4_14 Q-Target imported!
+Satellite 4_15 Q-Network imported!
+Satellite 4_15 Q-Target imported!
+Satellite 4_16 Q-Network imported!
+Satellite 4_16 Q-Target imported!
+Satellite 4_17 Q-Network imported!
+Satellite 4_17 Q-Target imported!
+Satellite 4_18 Q-Network imported!
+Satellite 4_18 Q-Target imported!

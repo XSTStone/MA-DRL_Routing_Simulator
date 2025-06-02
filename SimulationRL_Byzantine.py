@@ -249,9 +249,12 @@ nnpath      = './pre_trained_NNs/qNetwork_2GTs_lastHop.h5'
 nnpathTarget= './pre_trained_NNs/qTarget_2GTs_lastHop.h5'
 tablesPath  = './pre_trained_NNs/qTablesExport_2GTs_movement/'
 
+# mode = 'Byzantine_clipNorm_combination'
+mode = 'Byzantine_clipNorm_full'
+
 if __name__ == '__main__':
     # nnpath          = f'./pre_trained_NNs/qNetwork_8GTs.h5'
-    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_Byzantine_clipNorm_combination/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs)
+    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_{}/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs, mode)
     populationMap   = 'Population Map/gpw_v4_population_count_rev11_2020_15_min.tif'
 
 ###############################################################################
@@ -408,7 +411,7 @@ def simProgress(simTimelimit, env):
 ###############################################################################
 
 FL_techs    = ['nothing', 'modelAnticipation', 'plane', 'full', 'combination']
-FL_tech     = FL_techs[4]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
+FL_tech     = FL_techs[3]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
 if FL_tech == 'combination':
     global FL_counter
     FL_counter = 1
