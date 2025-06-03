@@ -250,7 +250,7 @@ nnpathTarget= './pre_trained_NNs/qTarget_2GTs_lastHop.h5'
 tablesPath  = './pre_trained_NNs/qTablesExport_2GTs_movement/'
 
 FL_techs    = ['nothing', 'modelAnticipation', 'plane', 'full', 'combination']
-FL_tech     = FL_techs[3]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
+FL_tech     = FL_techs[4]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
 
 if __name__ == '__main__':
     # nnpath          = f'./pre_trained_NNs/qNetwork_8GTs.h5'
